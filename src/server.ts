@@ -6,13 +6,11 @@ import { z } from "zod"
 import { ejecutarTurno, type DependenciasCiclo } from "./agent/ciclo"
 import { construirSistema } from "./agent/prompt"
 import { AlmacenSesiones } from "./agent/sesiones"
-import { cargarConfig, hayClaveProveedor } from "./config"
+import { cargarConfig } from "./config"
 import { listarCasos } from "./dominio/caso"
 import { fechaReferencia } from "./dominio/fechas"
 import { salidaCaso, validarNombreCaso } from "./dominio/rutas"
-import type { ProveedorLLM } from "./llm/adapter"
-import { ProveedorAnthropic } from "./llm/anthropic"
-import { ProveedorSimulado } from "./llm/simulado"
+import { crearProveedor } from "./llm/fabrica"
 import { cargarHerramientas } from "./tools/registro"
 
 const RAIZ = fileURLToPath(new URL("..", import.meta.url))
@@ -21,22 +19,8 @@ const config = cargarConfig()
 const ctxBase = { directory: RAIZ, sessionId: "servidor", fechaReferencia: config.FECHA_REFERENCIA }
 const fecha = fechaReferencia(ctxBase)
 
-function crearProveedor(): ProveedorLLM {
-  const simulado = new ProveedorSimulado(() => listarCasos(ctxBase))
-  if (config.LLM_PROVIDER === "simulado") return simulado
-  if (!hayClaveProveedor()) {
-    console.warn("⚠ No hay ANTHROPIC_API_KEY: se usa el proveedor simulado (sin modelo de lenguaje).")
-    return simulado
-  }
-  return new ProveedorAnthropic({
-    modelo: config.LLM_MODEL,
-    esfuerzo: config.LLM_EFFORT,
-    maxTokensRespuesta: config.LLM_MAX_TOKENS_RESPUESTA,
-    timeoutMs: config.LLM_TIMEOUT_MS,
-  })
-}
-
-const proveedor = crearProveedor()
+const { proveedor, aviso } = crearProveedor(config, process.env, () => listarCasos(ctxBase))
+if (aviso) console.warn(`⚠ ${aviso}`)
 const sesiones = new AlmacenSesiones(config.MAX_SESIONES)
 const deps: DependenciasCiclo = {
   proveedor,

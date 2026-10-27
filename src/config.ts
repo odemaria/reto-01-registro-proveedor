@@ -3,13 +3,17 @@ import { esFechaValida } from "./dominio/fechas"
 
 /**
  * Configuración desde variables de entorno (ver .env.example).
- * La clave del proveedor (ANTHROPIC_API_KEY) NO se lee aquí: la lee el SDK directamente,
- * así nunca termina en objetos de configuración, logs ni respuestas de la API.
+ * Las claves de los proveedores (GEMINI_API_KEY, ANTHROPIC_API_KEY) NO se guardan aquí: solo las
+ * leen los adaptadores al crear el cliente, así nunca terminan en configuración, logs ni respuestas.
  */
 const esquema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
-  LLM_PROVIDER: z.enum(["anthropic", "simulado"]).default("anthropic"),
-  LLM_MODEL: z.string().min(1).default("claude-opus-5-5"),
+  LLM_PROVIDER: z.enum(["auto", "gemini", "anthropic", "simulado"]).default("auto"),
+  /** Vacío = modelo por defecto del proveedor (gemini-3.8-flash o claude-opus-5-5). */
+  LLM_MODEL: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined)),
   LLM_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
   LLM_MAX_TOKENS_RESPUESTA: z.coerce.number().int().min(1024).max(64000).default(16000),
   LLM_TIMEOUT_MS: z.coerce.number().int().min(5000).default(90000),
@@ -37,8 +41,4 @@ export function cargarConfig(entorno: Record<string, string | undefined> = proce
     throw new Error(`Configuración inválida: ${detalle}`)
   }
   return r.data
-}
-
-export function hayClaveProveedor(entorno: Record<string, string | undefined> = process.env): boolean {
-  return Boolean(entorno.ANTHROPIC_API_KEY?.trim() || entorno.ANTHROPIC_AUTH_TOKEN?.trim())
 }
