@@ -8,7 +8,7 @@ type Entorno = Record<string, string | undefined>
 type NombreProveedor = "gemini" | "anthropic" | "simulado"
 
 const MODELO_POR_DEFECTO: Record<Exclude<NombreProveedor, "simulado">, string> = {
-  gemini: "gemini-3.8-flash",
+  gemini: "gemini-2.5-flash",
   anthropic: "claude-opus-5-5",
 }
 

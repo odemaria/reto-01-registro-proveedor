@@ -82,8 +82,9 @@ en `out/log.jsonl` y `out/<caso>/log.jsonl` con `{ ts, sesion, herramienta, ok, 
 | | |
 |---|---|
 | Proveedor del link de prueba | **Google Gemini** (API de Google AI Studio, SDK oficial `@google/genai`), capa gratuita |
-| Modelo por defecto | `gemini-3.8-flash` (configurable con `LLM_MODEL`; también funciona `gemini-2.5-flash`, también gratuito) |
-| Por qué | Está en la capa gratuita según la página oficial de precios de Google, soporta llamadas a funciones con esquemas JSON y razona por defecto, lo que basta para orquestar 4–5 herramientas. La clave gratuita evita gastar una clave de pago con un link público. |
+| Modelo por defecto | `gemini-2.5-flash` con razonamiento bajo (`thinkingBudget` de 1024 tokens). Configurable con `LLM_MODEL` y `LLM_EFFORT`. |
+| Por qué | Está en la capa gratuita según la página oficial de precios de Google, soporta llamadas a funciones con esquemas JSON y basta para orquestar 4–5 herramientas. La clave gratuita evita gastar una clave de pago con un link público. |
+| Lo que se descartó | Primero se usó `gemini-3.8-flash` (el más nuevo de la capa gratuita). En el despliegue, cada respuesta tardaba más de 60–90 s, incluso con razonamiento bajo, y un caso completo (≈5 llamadas) no alcanzaba a terminar. Los registros de diagnóstico (`[llm]` en los logs) lo mostraron. Se cambió a `gemini-2.5-flash`. |
 | Alternativa incluida | Adaptador de Anthropic (`claude-opus-5-5`) en `src/llm/anthropic.ts`. Se activa solo con `ANTHROPIC_API_KEY`; no se usó en el despliegue. |
 | Selección | `LLM_PROVIDER=auto` (por defecto): Gemini si hay `GEMINI_API_KEY`, Anthropic si hay la suya, si no el simulado. El ciclo del agente es el mismo para los tres: así se demuestra que cambiar de proveedor no lo toca. |
 

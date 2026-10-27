@@ -9,7 +9,7 @@ import { esFechaValida } from "./dominio/fechas"
 const esquema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   LLM_PROVIDER: z.enum(["auto", "gemini", "anthropic", "simulado"]).default("auto"),
-  /** Vacío = modelo por defecto del proveedor (gemini-3.8-flash o claude-opus-5-5). */
+  /** Vacío = modelo por defecto del proveedor (gemini-2.5-flash o claude-opus-5-5). */
   LLM_MODEL: z
     .string()
     .optional()

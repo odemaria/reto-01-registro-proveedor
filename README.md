@@ -17,7 +17,7 @@ antes de cualquier envío** (que además es simulado).
 
 - [Bun](https://bun.sh) 1.1 o superior (probado con 1.4.2).
 - Una clave **gratuita** de Gemini, creada en [Google AI Studio](https://aistudio.google.com/apikey).
-  El modelo por defecto es `gemini-3.8-flash`, que está en la capa gratuita.
+  El modelo por defecto es `gemini-2.5-flash`, que está en la capa gratuita.
 - Sin clave, el servidor arranca con el **proveedor simulado** (sin modelo de lenguaje) y todo el
   flujo se puede probar igual. También hay un adaptador para Anthropic (`ANTHROPIC_API_KEY`), opcional.
 
@@ -78,7 +78,7 @@ Todas están documentadas en [.env.example](.env.example). Las principales:
 |---|---|---|
 | `GEMINI_API_KEY` | Clave gratuita de Google AI Studio. Solo la lee el backend. | (vacía) |
 | `LLM_PROVIDER` | `auto`, `gemini`, `anthropic` o `simulado`. `auto` usa el proveedor cuya clave exista. | `auto` |
-| `LLM_MODEL` | Modelo del proveedor | `gemini-3.8-flash` (o `claude-opus-5-5` con Anthropic) |
+| `LLM_MODEL` | Modelo del proveedor | `gemini-2.5-flash` (o `claude-opus-5-5` con Anthropic) |
 | `ANTHROPIC_API_KEY` | Opcional: proveedor alternativo | (vacía) |
 | `LLM_EFFORT` | Nivel de razonamiento. Más alto = mejores decisiones pero respuestas más lentas | `low` en Gemini, `medium` en Anthropic |
 | `FECHA_REFERENCIA` | Fecha contra la que se evalúan vigencias (AAAA-MM-DD) | fecha del sistema |
