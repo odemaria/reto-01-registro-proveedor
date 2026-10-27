@@ -10,8 +10,16 @@ antes de cualquier envío** (que además es simulado).
 
 ## Link de prueba
 
-> **Pendiente de completar por el candidato tras desplegar:** `https://<servicio>.onrender.com`
-> Si se define `APP_ACCESS_KEY`, la clave de acceso se entrega por el canal de la entrega (no en este archivo).
+**https://reto-01-registro-proveedor-qzqr.onrender.com**
+
+- Desplegado en Render (plan gratuito) con Gemini (`gemini-2.5-flash`, capa gratuita).
+- Estado: [`/api/health`](https://reto-01-registro-proveedor-qzqr.onrender.com/api/health) muestra el proveedor y el modelo activos.
+- El plan gratuito "duerme" el servicio tras 15 minutos sin uso: el primer acceso tarda cerca de un minuto.
+- La capa gratuita de Gemini permite pocas solicitudes por minuto. Si se procesan varios casos
+  seguidos, el agente espera lo que indique Google y, si aun así no alcanza, lo explica en el chat.
+- Prompt de prueba: *Procesa el caso "ec-corp-andina". Dime qué campos quedaron llenos, cuáles faltan,
+  si el paquete está listo para firma y qué soportes debo actualizar. No envíes nada todavía.*
+  Luego: *envía*.
 
 ## Requisitos
 
