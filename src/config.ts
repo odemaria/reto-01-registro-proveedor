@@ -38,8 +38,40 @@ const esquema = z.object({
 
 export type Config = z.infer<typeof esquema>
 
-export function cargarConfig(entorno: Record<string, string | undefined> = process.env): Config {
-  const r = esquema.safeParse(entorno)
+/** Variables con opciones fijas: un error de tipeo en el panel del hosting no debe tumbar el servicio. */
+const OPCIONES_TOLERANTES: Record<string, readonly string[]> = {
+  LLM_PROVIDER: ["auto", "gemini", "anthropic", "simulado"],
+  LLM_EFFORT: ["minimal", "low", "medium", "high", "xhigh", "max"],
+}
+
+/** Quita espacios y comillas sobrantes y pasa a minúsculas: " Gemini" o "\"auto\"" se leen bien. */
+function normalizar(valor: string | undefined): string | undefined {
+  return valor?.trim().replace(/^["']+|["']+$/g, "").trim().toLowerCase()
+}
+
+/**
+ * Corrige lo corregible y, si una variable con opciones fijas trae un valor desconocido, avisa
+ * (mostrando el valor recibido: estas variables no son secretas) y usa el valor por defecto.
+ */
+export function sanearEntorno(entorno: Record<string, string | undefined>, avisar: (m: string) => void = console.warn): Record<string, string | undefined> {
+  const limpio = { ...entorno }
+  if (limpio.LLM_MODEL !== undefined) limpio.LLM_MODEL = normalizar(limpio.LLM_MODEL)
+  for (const [clave, permitidos] of Object.entries(OPCIONES_TOLERANTES)) {
+    const valor = normalizar(limpio[clave])
+    if (!valor) {
+      delete limpio[clave]
+    } else if (permitidos.includes(valor)) {
+      limpio[clave] = valor
+    } else {
+      avisar(`⚠ ${clave}="${valor.slice(0, 40)}" no es válido (opciones: ${permitidos.join(" | ")}); se usa el valor por defecto.`)
+      delete limpio[clave]
+    }
+  }
+  return limpio
+}
+
+export function cargarConfig(entorno: Record<string, string | undefined> = process.env, avisar: (m: string) => void = console.warn): Config {
+  const r = esquema.safeParse(sanearEntorno(entorno, avisar))
   if (!r.success) {
     const detalle = r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
     throw new Error(`Configuración inválida: ${detalle}`)

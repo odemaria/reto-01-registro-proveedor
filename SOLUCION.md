@@ -233,7 +233,7 @@ punto por punto. Encontró seis brechas, que se corrigieron y quedaron cubiertas
 - Publicar `PRD.md` en el repositorio público: se excluyó por ser un documento interno del proceso
   de selección.
 
-**Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (92 pruebas) y `tsc`, construyó
+**Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (98 pruebas) y `tsc`, construyó
 la imagen Docker, revisó el Excel, el PDF, el checklist y el borrador de correo generados, y probó el
 flujo de confirmación en el chat con el proveedor simulado. El adaptador de Gemini se probó con un cliente falso (formato de mensajes, firmas de pensamiento, reintentos y flujo completo); la prueba contra la API real de Gemini queda pendiente de tener la clave.
 *(Completar por el candidato: qué revisó personalmente y la prueba con el modelo real.)*
