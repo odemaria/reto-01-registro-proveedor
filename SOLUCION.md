@@ -85,6 +85,7 @@ en `out/log.jsonl` y `out/<caso>/log.jsonl` con `{ ts, sesion, herramienta, ok, 
 | Modelo por defecto | `gemini-2.5-flash` con razonamiento bajo (`thinkingBudget` de 1024 tokens). Configurable con `LLM_MODEL` y `LLM_EFFORT`. |
 | Por qué | Está en la capa gratuita según la página oficial de precios de Google, soporta llamadas a funciones con esquemas JSON y basta para orquestar 4–5 herramientas. La clave gratuita evita gastar una clave de pago con un link público. |
 | Lo que se descartó | Primero se usó `gemini-3.8-flash` (el más nuevo de la capa gratuita). En el despliegue, cada respuesta tardaba más de 60–90 s, incluso con razonamiento bajo, y un caso completo (≈5 llamadas) no alcanzaba a terminar. Los registros de diagnóstico (`[llm]` en los logs) lo mostraron. Se cambió a `gemini-2.5-flash`. |
+| Modelo según la clave | Luego, la clave del despliegue respondió 404 para `gemini-2.5-flash`, aunque la página de precios lo lista como gratuito: la disponibilidad real depende de la clave y del proyecto. Por eso, al arrancar, el adaptador consulta a Google qué modelos acepta la clave (`models.list`) y, si el configurado no está, usa el primero disponible de una lista de preferencia (`PREFERENCIA_MODELOS`, flash rápidos primero). Un 404 en plena solicitud también cambia de modelo. `/api/health` muestra el modelo configurado, el activo y los disponibles (sin datos secretos). |
 | Alternativa incluida | Adaptador de Anthropic (`claude-opus-5-5`) en `src/llm/anthropic.ts`. Se activa solo con `ANTHROPIC_API_KEY`; no se usó en el despliegue. |
 | Selección | `LLM_PROVIDER=auto` (por defecto): Gemini si hay `GEMINI_API_KEY`, Anthropic si hay la suya, si no el simulado. El ciclo del agente es el mismo para los tres: así se demuestra que cambiar de proveedor no lo toca. |
 
@@ -232,7 +233,7 @@ punto por punto. Encontró seis brechas, que se corrigieron y quedaron cubiertas
 - Publicar `PRD.md` en el repositorio público: se excluyó por ser un documento interno del proceso
   de selección.
 
-**Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (85 pruebas) y `tsc`, construyó
+**Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (92 pruebas) y `tsc`, construyó
 la imagen Docker, revisó el Excel, el PDF, el checklist y el borrador de correo generados, y probó el
 flujo de confirmación en el chat con el proveedor simulado. El adaptador de Gemini se probó con un cliente falso (formato de mensajes, firmas de pensamiento, reintentos y flujo completo); la prueba contra la API real de Gemini queda pendiente de tener la clave.
 *(Completar por el candidato: qué revisó personalmente y la prueba con el modelo real.)*

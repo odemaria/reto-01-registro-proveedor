@@ -65,7 +65,7 @@ bun test
 bun run typecheck
 ```
 
-85 pruebas: mapeo y reglas de negocio, contrato de herramientas, generación de archivos, la matriz de
+92 pruebas: mapeo y reglas de negocio, contrato de herramientas, generación de archivos, la matriz de
 "trampas" del PRD (confirmación ligada a caso, celdas exactas, soporte vs. faltante, identificador
 extranjero, datos bancarios, timeout, determinismo), tope de iteraciones, sincronía de `modulo/` y el
 adaptador de Gemini con un cliente falso (no necesitan red ni clave).
