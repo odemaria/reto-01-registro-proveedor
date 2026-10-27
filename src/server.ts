@@ -21,8 +21,10 @@ const fecha = fechaReferencia(ctxBase)
 
 const { proveedor, aviso } = crearProveedor(config, process.env, () => listarCasos(ctxBase))
 if (aviso) console.warn(`⚠ ${aviso}`)
-// Verificación al arrancar (p. ej. modelos que acepta la clave). Con tope de 15 s para no bloquear el inicio.
-await Promise.race([proveedor.preparar?.().catch(() => undefined), new Promise((r) => setTimeout(r, 15_000))])
+// Verificación en segundo plano (p. ej. modelos que acepta la clave): el servidor no espera a un servicio externo para arrancar.
+setTimeout(() => {
+  proveedor.preparar?.().catch((error: unknown) => console.warn(`[llm] preparar falló: ${error instanceof Error ? error.name : "error"}`))
+}, 0)
 const sesiones = new AlmacenSesiones(config.MAX_SESIONES)
 const deps: DependenciasCiclo = {
   proveedor,
