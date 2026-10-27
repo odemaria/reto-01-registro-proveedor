@@ -12,7 +12,7 @@ import { cargarConfig } from "../src/config"
 import type { ContextoHerramienta } from "../src/dominio/contexto"
 import { ErrorProveedor } from "../src/llm/adapter"
 import { elegirProveedor } from "../src/llm/fabrica"
-import { aContenidos, configuracionRazonamiento, deRespuesta, ProveedorGemini, type ClienteGemini } from "../src/llm/gemini"
+import { aContenidos, configuracionRazonamiento, deRespuesta, elegirModelo, ProveedorGemini, type ClienteGemini } from "../src/llm/gemini"
 import { cargarHerramientas } from "../src/tools/registro"
 import { proyectoTemporal } from "./utilidades"
 
@@ -184,5 +184,42 @@ describe("nivel de razonamiento según el modelo", () => {
   test("sin LLM_EFFORT, Gemini usa 'low' por defecto", () => {
     expect(cargarConfig({}).LLM_EFFORT).toBeUndefined()
     expect(cargarConfig({ LLM_EFFORT: "" }).LLM_EFFORT).toBeUndefined()
+  })
+})
+
+describe("elección automática de modelo según la clave", () => {
+  const listado = (nombres: string[]) => async () =>
+    (async function* () {
+      for (const n of nombres) yield { name: `models/${n}`, supportedActions: ["generateContent"] }
+    })()
+
+  test("si el modelo configurado no existe para la clave, al arrancar elige el preferido disponible", async () => {
+    const cliente = Object.assign(new ClienteFalso([respuesta([{ text: "ok" }])]), { list: listado(["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-embedding-2"]) })
+    const p = new ProveedorGemini({ ...config, modelo: "gemini-2.5-flash" }, cliente)
+    await p.preparar()
+    expect(p.modelo).toBe("gemini-3.5-flash-lite")
+    expect(p.diagnostico()).toEqual({ modeloConfigurado: "gemini-2.5-flash", modelosDisponibles: ["gemini-3.8-flash", "gemini-3.5-flash-lite"] })
+    await p.enviar([{ rol: "usuario", texto: "hola" }], [], { sistema: "s" })
+    expect(cliente.solicitudes[0]?.model).toBe("gemini-3.5-flash-lite")
+  })
+
+  test("si el modelo configurado existe, no se cambia", async () => {
+    const cliente = Object.assign(new ClienteFalso([]), { list: listado(["gemini-2.5-flash", "gemini-3.6-flash"]) })
+    const p = new ProveedorGemini({ ...config, modelo: "gemini-2.5-flash" }, cliente)
+    await p.preparar()
+    expect(p.modelo).toBe("gemini-2.5-flash")
+  })
+
+  test("un 404 en plena solicitud cambia de modelo y reintenta", async () => {
+    const cliente = Object.assign(new ClienteFalso([new ApiError({ message: "not found", status: 404 }), respuesta([{ text: "listo" }])]), { list: listado(["gemini-3.6-flash"]) })
+    const p = new ProveedorGemini({ ...config, modelo: "gemini-2.5-flash" }, cliente)
+    const r = await p.enviar([{ rol: "usuario", texto: "hola" }], [], { sistema: "s" })
+    expect(r.texto).toBe("listo")
+    expect(cliente.solicitudes.map((s) => s.model)).toEqual(["gemini-2.5-flash", "gemini-3.6-flash"])
+  })
+
+  test("elegirModelo descarta modelos de imagen, audio y los ya probados", () => {
+    expect(elegirModelo(["gemini-3.1-flash-image", "gemini-9-flash"], [])).toBe("gemini-9-flash")
+    expect(elegirModelo(["gemini-3.6-flash"], ["gemini-3.6-flash"])).toBeNull()
   })
 })

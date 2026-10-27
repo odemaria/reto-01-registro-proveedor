@@ -21,6 +21,8 @@ const fecha = fechaReferencia(ctxBase)
 
 const { proveedor, aviso } = crearProveedor(config, process.env, () => listarCasos(ctxBase))
 if (aviso) console.warn(`⚠ ${aviso}`)
+// Verificación al arrancar (p. ej. modelos que acepta la clave). Con tope de 15 s para no bloquear el inicio.
+await Promise.race([proveedor.preparar?.().catch(() => undefined), new Promise((r) => setTimeout(r, 15_000))])
 const sesiones = new AlmacenSesiones(config.MAX_SESIONES)
 const deps: DependenciasCiclo = {
   proveedor,
@@ -156,7 +158,7 @@ async function enrutar(req: Request, ip: string): Promise<Response> {
   const url = new URL(req.url)
   const ruta = url.pathname
   if (req.method === "GET" && ruta === "/api/health") {
-    return json({ ok: true, provider: proveedor.nombre, model: proveedor.modelo, fechaReferencia: fecha, requiereClave: Boolean(config.APP_ACCESS_KEY) })
+    return json({ ok: true, provider: proveedor.nombre, model: proveedor.modelo, fechaReferencia: fecha, requiereClave: Boolean(config.APP_ACCESS_KEY), ...proveedor.diagnostico?.() })
   }
   if (ruta.startsWith("/api/") && !claveValida(req)) return errorJson("Clave de acceso inválida.", 401)
   if (req.method === "POST" && ruta === "/api/chat") return chat(req, ip)

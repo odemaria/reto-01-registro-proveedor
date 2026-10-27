@@ -40,6 +40,10 @@ export interface ProveedorLLM {
   enviar(mensajes: Mensaje[], herramientas: DefinicionHerramienta[], opciones: OpcionesEnvio): Promise<RespuestaLLM>
   /** Opcional: qué está haciendo el proveedor ahora (para diagnosticar un timeout). Nunca incluye claves. */
   estado?(): string
+  /** Opcional: verificación al arrancar (p. ej. qué modelos acepta la clave). */
+  preparar?(): Promise<void>
+  /** Opcional: datos de diagnóstico sin secretos para /api/health. */
+  diagnostico?(): Record<string, unknown>
 }
 
 /** Error del proveedor con un mensaje apto para mostrar al usuario (nunca incluye la clave). */
