@@ -129,6 +129,12 @@ function cerrarTurno(sesion: Sesion, texto: string, visibles: LlamadaVisible[], 
   return { reply: texto, toolCalls: visibles, needsConfirmation, pendingAction }
 }
 
+/** Si el modelo falla después de ejecutar herramientas, el usuario igual sabe qué quedó hecho (sin inventar nada). */
+function resumenDeLoHecho(visibles: LlamadaVisible[]): string {
+  const hechas = visibles.filter((v) => v.ok).map((v) => `- ${v.nombre}: ${v.resumen}`)
+  return hechas.length > 0 ? `\n\nAntes del error alcancé a completar:\n${hechas.join("\n")}` : ""
+}
+
 function fallar(reply: string, visibles: LlamadaVisible[]): RespuestaTurno {
   return { reply, toolCalls: visibles, needsConfirmation: false, pendingAction: null, error: true }
 }
@@ -158,7 +164,7 @@ export async function ejecutarTurno(sesion: Sesion, mensajeUsuario: string, deps
       respuesta = await consultar(deps, sesion, definiciones)
     } catch (error) {
       const mensaje = error instanceof ErrorProveedor ? error.message : "Error inesperado al consultar el modelo."
-      return fallar(`⚠️ ${mensaje} La sesión sigue activa: puedes reintentar.`, visibles)
+      return fallar(`⚠️ ${mensaje} La sesión sigue activa: puedes reintentar.${resumenDeLoHecho(visibles)}`, visibles)
     }
     sesion.tokensUsados += respuesta.uso.entrada + respuesta.uso.salida
     sesion.mensajes.push({ rol: "asistente", texto: respuesta.texto, llamadas: respuesta.llamadas, crudo: respuesta.crudo })

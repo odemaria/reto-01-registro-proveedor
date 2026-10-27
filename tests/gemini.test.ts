@@ -12,7 +12,7 @@ import { cargarConfig } from "../src/config"
 import type { ContextoHerramienta } from "../src/dominio/contexto"
 import { ErrorProveedor } from "../src/llm/adapter"
 import { elegirProveedor } from "../src/llm/fabrica"
-import { aContenidos, configuracionRazonamiento, deRespuesta, elegirModelo, ProveedorGemini, type ClienteGemini } from "../src/llm/gemini"
+import { aContenidos, configuracionRazonamiento, deRespuesta, elegirModelo, esperaSugerida, ProveedorGemini, type ClienteGemini } from "../src/llm/gemini"
 import { cargarHerramientas } from "../src/tools/registro"
 import { proyectoTemporal } from "./utilidades"
 
@@ -221,5 +221,34 @@ describe("elección automática de modelo según la clave", () => {
   test("elegirModelo descarta modelos de imagen, audio y los ya probados", () => {
     expect(elegirModelo(["gemini-3.1-flash-image", "gemini-9-flash"], [])).toBe("gemini-9-flash")
     expect(elegirModelo(["gemini-3.6-flash"], ["gemini-3.6-flash"])).toBeNull()
+  })
+})
+
+describe("límite por minuto de la capa gratuita", () => {
+  test("respeta el tiempo de espera que sugiere Google en el 429", () => {
+    const conDemora = new ApiError({ message: '{"error":{"code":429,"details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"34s"}]}}', status: 429 })
+    expect(esperaSugerida(conDemora)).toBe(35_000)
+    expect(esperaSugerida(new ApiError({ message: '"retryDelay": "300s"', status: 429 }))).toBe(60_000)
+    expect(esperaSugerida(new ApiError({ message: "quota", status: 429 }))).toBeNull()
+    expect(esperaSugerida(new ApiError({ message: '"retryDelay":"5s"', status: 500 }))).toBeNull()
+  })
+
+  test("si el modelo falla después de ejecutar herramientas, el mensaje dice qué quedó hecho", async () => {
+    const caso = "co-industrias-delta"
+    const cliente = new ClienteFalso([respuesta([llamada("proveedor_leer_solicitud", { caso })]), new ApiError({ message: "bad", status: 400 })])
+    const sesion = new AlmacenSesiones(5).obtenerOCrear()
+    const t = await ejecutarTurno(sesion, `procesa ${caso}`, {
+      proveedor: new ProveedorGemini(config, cliente),
+      herramientas: cargarHerramientas(),
+      sistema: "s",
+      directorio: ctx.directory,
+      fechaReferencia: ctx.fechaReferencia,
+      maxIteraciones: 5,
+      maxTokensSesion: 1_000_000,
+      timeoutMs: 5_000,
+    })
+    expect(t.error).toBe(true)
+    expect(t.reply).toContain("Antes del error alcancé a completar")
+    expect(t.reply).toContain("proveedor_leer_solicitud")
   })
 })

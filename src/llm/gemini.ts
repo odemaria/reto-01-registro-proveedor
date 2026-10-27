@@ -169,7 +169,7 @@ export class ProveedorGemini implements ProveedorLLM {
         if (await this.cambiarPorNoDisponible(error, descartados)) continue
         const traducido = traducirError(error)
         const ms = Date.now() - inicio
-        const espera = this.config.esperaBaseMs * 2 ** (intento - 1)
+        const espera = esperaSugerida(error) ?? this.config.esperaBaseMs * 2 ** (intento - 1)
         const reintenta = traducido.reintentable && intento <= this.config.reintentos && !opciones.signal?.aborted
         this.ultimoEstado = `Gemini respondió error ${descripcionError(error)} en el intento ${intento}${reintenta ? `; reintentando en ${Math.round(espera / 1000)} s` : ""}`
         registrarLlm(`modelo=${this.modelo} intento=${intento} ms=${ms} error=${descripcionError(error)} detalle="${detalleError(error)}"`)
@@ -200,6 +200,16 @@ export function configuracionRazonamiento(modelo: string, esfuerzo: EsfuerzoGemi
   if (/^gemini-[3-9]/.test(modelo)) return { thinkingLevel: NIVELES[esfuerzo] }
   if (/^gemini-2\.5/.test(modelo)) return { thinkingBudget: /flash/.test(modelo) ? PRESUPUESTOS[esfuerzo] : Math.max(128, PRESUPUESTOS[esfuerzo]) }
   return undefined
+}
+
+/**
+ * Ante un 429, Google indica cuánto esperar ("retryDelay": "34s"). Se respeta ese tiempo (más 1 s,
+ * con tope de 60 s) en vez de reintentar a ciegas y volver a chocar con el límite.
+ */
+export function esperaSugerida(error: unknown): number | null {
+  if (!(error instanceof ApiError) || error.status !== 429) return null
+  const segundos = error.message.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/)?.[1]
+  return segundos ? Math.min(60_000, Math.ceil(Number(segundos) * 1000) + 1000) : null
 }
 
 /** Diagnóstico en los logs del servidor: tiempos, estado y códigos. Nunca la clave ni el contenido. */
