@@ -1,0 +1,4 @@
+# Fin de línea LF en todas las plataformas (la prueba de modulo/ compara texto exacto).
+* text=auto eol=lf
+*.xlsx binary
+*.pdf binary
