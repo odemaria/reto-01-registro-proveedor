@@ -104,7 +104,9 @@ async function consultar(deps: DependenciasCiclo, sesion: Sesion, definiciones: 
   const limite = new Promise<never>((_, rechazar) => {
     temporizador = setTimeout(() => {
       controlador.abort()
-      rechazar(new ErrorProveedor(`El modelo no respondió en ${Math.round(deps.timeoutMs / 1000)} s. Intenta de nuevo.`, true))
+      const estado = deps.proveedor.estado?.()
+      console.log(`[llm] timeout de ${deps.timeoutMs} ms · ${estado ?? "sin estado"}`)
+      rechazar(new ErrorProveedor(`El modelo no respondió en ${Math.round(deps.timeoutMs / 1000)} s${estado ? ` (${estado})` : ""}. Intenta de nuevo.`, true))
     }, deps.timeoutMs)
   })
   try {

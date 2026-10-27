@@ -34,6 +34,7 @@ export class ProveedorGemini implements ProveedorLLM {
   readonly nombre = "gemini"
   readonly modelo: string
   private readonly cliente: ClienteGemini
+  private ultimoEstado = "sin solicitudes todavía"
 
   constructor(
     private readonly config: ConfigGemini,
@@ -55,16 +56,47 @@ export class ProveedorGemini implements ProveedorLLM {
         abortSignal: opciones.signal,
       },
     }
-    for (let intento = 0; ; intento++) {
+    for (let intento = 1; ; intento++) {
+      const inicio = Date.now()
+      this.ultimoEstado = `esperando la respuesta de Gemini (${this.modelo}, intento ${intento})`
       try {
-        return deRespuesta(await this.cliente.generateContent(parametros))
+        const respuesta = deRespuesta(await this.cliente.generateContent(parametros))
+        const ms = Date.now() - inicio
+        this.ultimoEstado = `última respuesta de Gemini en ${ms} ms`
+        registrarLlm(`modelo=${this.modelo} intento=${intento} ms=${ms} fin=${respuesta.fin} llamadas=${respuesta.llamadas.length} tokens=${respuesta.uso.entrada}+${respuesta.uso.salida}`)
+        return respuesta
       } catch (error) {
         const traducido = traducirError(error)
-        if (!traducido.reintentable || intento >= this.config.reintentos || opciones.signal?.aborted) throw traducido
-        await esperar(this.config.esperaBaseMs * 2 ** intento, opciones.signal)
+        const ms = Date.now() - inicio
+        const espera = this.config.esperaBaseMs * 2 ** (intento - 1)
+        const reintenta = traducido.reintentable && intento <= this.config.reintentos && !opciones.signal?.aborted
+        this.ultimoEstado = `Gemini respondió error ${descripcionError(error)} en el intento ${intento}${reintenta ? `; reintentando en ${Math.round(espera / 1000)} s` : ""}`
+        registrarLlm(`modelo=${this.modelo} intento=${intento} ms=${ms} error=${descripcionError(error)} detalle="${detalleError(error)}"`)
+        if (!reintenta) throw traducido
+        await esperar(espera, opciones.signal)
       }
     }
   }
+
+  estado(): string {
+    return this.ultimoEstado
+  }
+}
+
+/** Diagnóstico en los logs del servidor: tiempos, estado y códigos. Nunca la clave ni el contenido. */
+function registrarLlm(texto: string): void {
+  console.log(`[llm] gemini ${texto}`)
+}
+
+function descripcionError(error: unknown): string {
+  if (error instanceof ApiError) return String(error.status)
+  if (error instanceof Error) return error.name
+  return "desconocido"
+}
+
+function detalleError(error: unknown): string {
+  const mensaje = error instanceof Error ? error.message : String(error)
+  return mensaje.replace(/key=[^&\s"]+/gi, "key=***").replace(/\s+/g, " ").slice(0, 240)
 }
 
 function esperar(ms: number, signal?: AbortSignal): Promise<void> {

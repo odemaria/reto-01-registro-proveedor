@@ -38,6 +38,8 @@ export interface ProveedorLLM {
   readonly nombre: string
   readonly modelo: string
   enviar(mensajes: Mensaje[], herramientas: DefinicionHerramienta[], opciones: OpcionesEnvio): Promise<RespuestaLLM>
+  /** Opcional: qué está haciendo el proveedor ahora (para diagnosticar un timeout). Nunca incluye claves. */
+  estado?(): string
 }
 
 /** Error del proveedor con un mensaje apto para mostrar al usuario (nunca incluye la clave). */
