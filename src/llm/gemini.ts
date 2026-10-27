@@ -1,4 +1,4 @@
-import { ApiError, GoogleGenAI, type Content, type GenerateContentParameters, type GenerateContentResponse, type Part } from "@google/genai"
+import { ApiError, GoogleGenAI, ThinkingLevel, type Content, type GenerateContentParameters, type GenerateContentResponse, type Part, type ThinkingConfig } from "@google/genai"
 import {
   ErrorProveedor,
   type DefinicionHerramienta,
@@ -14,9 +14,13 @@ import {
 /** Lo único que el adaptador usa del SDK: permite inyectar un cliente falso en las pruebas. */
 export type ClienteGemini = { generateContent(parametros: GenerateContentParameters): Promise<GenerateContentResponse> }
 
+export type EsfuerzoGemini = "minimal" | "low" | "medium" | "high"
+
 export type ConfigGemini = {
   modelo: string
   maxTokensRespuesta: number
+  /** Nivel de razonamiento: más alto = mejores decisiones pero respuestas mucho más lentas. */
+  esfuerzo: EsfuerzoGemini
   /** Reintentos ante 429/503 (la capa gratuita tiene pocas solicitudes por minuto). */
   reintentos: number
   esperaBaseMs: number
@@ -53,6 +57,7 @@ export class ProveedorGemini implements ProveedorLLM {
         tools: [{ functionDeclarations: herramientas.map((h) => ({ name: h.nombre, description: h.descripcion, parametersJsonSchema: h.esquema })) }],
         automaticFunctionCalling: { disable: true },
         maxOutputTokens: this.config.maxTokensRespuesta,
+        thinkingConfig: configuracionRazonamiento(this.modelo, this.config.esfuerzo),
         abortSignal: opciones.signal,
       },
     }
@@ -81,6 +86,24 @@ export class ProveedorGemini implements ProveedorLLM {
   estado(): string {
     return this.ultimoEstado
   }
+}
+
+const NIVELES: Record<EsfuerzoGemini, ThinkingLevel> = {
+  minimal: ThinkingLevel.MINIMAL,
+  low: ThinkingLevel.LOW,
+  medium: ThinkingLevel.MEDIUM,
+  high: ThinkingLevel.HIGH,
+}
+const PRESUPUESTOS: Record<EsfuerzoGemini, number> = { minimal: 0, low: 1024, medium: 4096, high: 8192 }
+
+/**
+ * Los modelos Gemini 3.x usan "thinkingLevel"; los 2.5 usan "thinkingBudget" (tokens). Enviar el
+ * campo equivocado provoca un error 400, por eso depende del nombre del modelo.
+ */
+export function configuracionRazonamiento(modelo: string, esfuerzo: EsfuerzoGemini): ThinkingConfig | undefined {
+  if (/^gemini-[3-9]/.test(modelo)) return { thinkingLevel: NIVELES[esfuerzo] }
+  if (/^gemini-2\.5/.test(modelo)) return { thinkingBudget: /flash/.test(modelo) ? PRESUPUESTOS[esfuerzo] : Math.max(128, PRESUPUESTOS[esfuerzo]) }
+  return undefined
 }
 
 /** Diagnóstico en los logs del servidor: tiempos, estado y códigos. Nunca la clave ni el contenido. */

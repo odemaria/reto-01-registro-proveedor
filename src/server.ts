@@ -25,7 +25,7 @@ const sesiones = new AlmacenSesiones(config.MAX_SESIONES)
 const deps: DependenciasCiclo = {
   proveedor,
   herramientas: cargarHerramientas(),
-  sistema: await construirSistema(RAIZ, fecha),
+  sistema: await construirSistema(RAIZ, fecha, await listarCasos(ctxBase)),
   directorio: RAIZ,
   fechaReferencia: config.FECHA_REFERENCIA,
   maxIteraciones: config.MAX_ITERACIONES,

@@ -80,7 +80,7 @@ Todas están documentadas en [.env.example](.env.example). Las principales:
 | `LLM_PROVIDER` | `auto`, `gemini`, `anthropic` o `simulado`. `auto` usa el proveedor cuya clave exista. | `auto` |
 | `LLM_MODEL` | Modelo del proveedor | `gemini-3.8-flash` (o `claude-opus-5-5` con Anthropic) |
 | `ANTHROPIC_API_KEY` | Opcional: proveedor alternativo | (vacía) |
-| `LLM_EFFORT` | Esfuerzo de razonamiento (solo Anthropic) | `medium` |
+| `LLM_EFFORT` | Nivel de razonamiento. Más alto = mejores decisiones pero respuestas más lentas | `low` en Gemini, `medium` en Anthropic |
 | `FECHA_REFERENCIA` | Fecha contra la que se evalúan vigencias (AAAA-MM-DD) | fecha del sistema |
 | `MAX_ITERACIONES` | Tope de pasos herramienta → modelo por turno | `25` |
 | `MAX_TOKENS_SESION` | Tope de tokens por sesión | `400000` |

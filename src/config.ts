@@ -14,7 +14,11 @@ const esquema = z.object({
     .string()
     .optional()
     .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined)),
-  LLM_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  /** Vacío = por defecto del proveedor: "low" en Gemini (respuestas rápidas), "medium" en Anthropic. */
+  LLM_EFFORT: z
+    .union([z.literal(""), z.enum(["minimal", "low", "medium", "high", "xhigh", "max"])])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
   LLM_MAX_TOKENS_RESPUESTA: z.coerce.number().int().min(1024).max(64000).default(16000),
   LLM_TIMEOUT_MS: z.coerce.number().int().min(5000).default(90000),
   MAX_ITERACIONES: z.coerce.number().int().min(1).max(100).default(25),

@@ -1,7 +1,7 @@
 import type { Config } from "../config"
 import type { ProveedorLLM } from "./adapter"
 import { ProveedorAnthropic } from "./anthropic"
-import { ProveedorGemini } from "./gemini"
+import { ProveedorGemini, type EsfuerzoGemini } from "./gemini"
 import { ProveedorSimulado } from "./simulado"
 
 type Entorno = Record<string, string | undefined>
@@ -38,10 +38,25 @@ export function crearProveedor(config: Config, entorno: Entorno, casos: () => Pr
   const { proveedor, aviso } = elegirProveedor(config, entorno)
   if (proveedor === "simulado") return { proveedor: new ProveedorSimulado(casos), aviso }
   const modelo = config.LLM_MODEL ?? MODELO_POR_DEFECTO[proveedor]
+  const esfuerzo = config.LLM_EFFORT
   if (proveedor === "gemini") {
-    return { proveedor: new ProveedorGemini({ modelo, maxTokensRespuesta: config.LLM_MAX_TOKENS_RESPUESTA, reintentos: 2, esperaBaseMs: 8000 }) }
+    return { proveedor: new ProveedorGemini({ modelo, maxTokensRespuesta: config.LLM_MAX_TOKENS_RESPUESTA, esfuerzo: esfuerzoGemini(esfuerzo), reintentos: 2, esperaBaseMs: 8000 }) }
   }
   return {
-    proveedor: new ProveedorAnthropic({ modelo, esfuerzo: config.LLM_EFFORT, maxTokensRespuesta: config.LLM_MAX_TOKENS_RESPUESTA, timeoutMs: config.LLM_TIMEOUT_MS }),
+    proveedor: new ProveedorAnthropic({ modelo, esfuerzo: esfuerzoAnthropic(esfuerzo), maxTokensRespuesta: config.LLM_MAX_TOKENS_RESPUESTA, timeoutMs: config.LLM_TIMEOUT_MS }),
   }
+}
+
+type Esfuerzo = NonNullable<Config["LLM_EFFORT"]>
+
+/** Gemini: "low" por defecto (con más razonamiento cada respuesta tardaba más de un minuto en la capa gratuita). */
+function esfuerzoGemini(e: Esfuerzo | undefined): EsfuerzoGemini {
+  if (e === undefined) return "low"
+  if (e === "xhigh" || e === "max") return "high"
+  return e
+}
+
+function esfuerzoAnthropic(e: Esfuerzo | undefined): "low" | "medium" | "high" | "xhigh" | "max" {
+  if (e === undefined) return "medium"
+  return e === "minimal" ? "low" : e
 }

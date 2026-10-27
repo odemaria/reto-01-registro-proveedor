@@ -5,14 +5,14 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { ApiError, type Content, type GenerateContentParameters, type GenerateContentResponse, type Part } from "@google/genai"
+import { ApiError, ThinkingLevel, type Content, type GenerateContentParameters, type GenerateContentResponse, type Part } from "@google/genai"
 import { ejecutarTurno } from "../src/agent/ciclo"
 import { AlmacenSesiones } from "../src/agent/sesiones"
 import { cargarConfig } from "../src/config"
 import type { ContextoHerramienta } from "../src/dominio/contexto"
 import { ErrorProveedor } from "../src/llm/adapter"
 import { elegirProveedor } from "../src/llm/fabrica"
-import { aContenidos, deRespuesta, ProveedorGemini, type ClienteGemini } from "../src/llm/gemini"
+import { aContenidos, configuracionRazonamiento, deRespuesta, ProveedorGemini, type ClienteGemini } from "../src/llm/gemini"
 import { cargarHerramientas } from "../src/tools/registro"
 import { proyectoTemporal } from "./utilidades"
 
@@ -43,7 +43,7 @@ class ClienteFalso implements ClienteGemini {
   }
 }
 
-const config = { modelo: "gemini-3.8-flash", maxTokensRespuesta: 1000, reintentos: 2, esperaBaseMs: 1 }
+const config = { modelo: "gemini-3.8-flash", maxTokensRespuesta: 1000, esfuerzo: "low" as const, reintentos: 2, esperaBaseMs: 1 }
 
 describe("conversión de mensajes", () => {
   test("lee llamadas a funciones, uso de tokens y conserva la firma de pensamiento", () => {
@@ -164,5 +164,25 @@ describe("elección de proveedor (sin exponer claves)", () => {
     const r = elegirProveedor(cargarConfig({ LLM_PROVIDER: "gemini" }), {})
     expect(r.proveedor).toBe("simulado")
     expect(r.aviso).toContain("falta su clave")
+  })
+})
+
+describe("nivel de razonamiento según el modelo", () => {
+  test("Gemini 3.x usa thinkingLevel y 2.5 usa thinkingBudget", () => {
+    expect(configuracionRazonamiento("gemini-3.8-flash", "low")).toEqual({ thinkingLevel: ThinkingLevel.LOW })
+    expect(configuracionRazonamiento("gemini-2.5-flash", "low")).toEqual({ thinkingBudget: 1024 })
+    expect(configuracionRazonamiento("gemini-2.5-pro", "minimal")).toEqual({ thinkingBudget: 128 })
+    expect(configuracionRazonamiento("otro-modelo", "low")).toBeUndefined()
+  })
+
+  test("la solicitud a Gemini lleva el nivel configurado", async () => {
+    const cliente = new ClienteFalso([respuesta([{ text: "ok" }])])
+    await new ProveedorGemini(config, cliente).enviar([{ rol: "usuario", texto: "hola" }], [], { sistema: "s" })
+    expect(cliente.solicitudes[0]?.config?.thinkingConfig).toEqual({ thinkingLevel: ThinkingLevel.LOW })
+  })
+
+  test("sin LLM_EFFORT, Gemini usa 'low' por defecto", () => {
+    expect(cargarConfig({}).LLM_EFFORT).toBeUndefined()
+    expect(cargarConfig({ LLM_EFFORT: "" }).LLM_EFFORT).toBeUndefined()
   })
 })
