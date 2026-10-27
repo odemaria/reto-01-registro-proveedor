@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registro como Proveedor</title>
+  <link rel="icon" href="/icono.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/estilos.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="marca">
+      <img src="/icono.svg" alt="" width="28" height="28">
+      <div>
+        <h1>Registro como Proveedor</h1>
+        <p class="sub">Agente que prepara formularios y paquetes para firma · Periferia IT Group</p>
+      </div>
+    </div>
+    <div class="estado" id="estado" aria-live="polite">Conectando…</div>
+  </header>
+
+  <div class="contenido">
+    <aside class="lateral" aria-label="Casos y archivos">
+      <section>
+        <h2>Casos de prueba</h2>
+        <ul class="casos" id="casos"></ul>
+      </section>
+      <section>
+        <h2>Archivos generados <span class="caso-activo" id="caso-activo"></span></h2>
+        <ul class="archivos" id="archivos"><li class="vacio">Procesa un caso para ver sus archivos.</li></ul>
+      </section>
+      <button type="button" class="secundario" id="nueva-sesion">Nueva sesión</button>
+    </aside>
+
+    <main class="chat">
+      <form class="acceso oculto" id="form-acceso">
+        <label for="clave-acceso">Este enlace está protegido. Ingresa la clave de acceso:</label>
+        <div class="fila">
+          <input id="clave-acceso" type="password" autocomplete="off" required>
+          <button type="submit">Entrar</button>
+        </div>
+      </form>
+
+      <div class="mensajes" id="mensajes" aria-live="polite">
+        <div class="bienvenida" id="bienvenida">
+          <h2>¿Qué solicitud procesamos?</h2>
+          <p>Escribe por ejemplo <em>Procesa el caso "ec-corp-andina". Dime qué campos quedaron llenos, cuáles faltan y si el paquete está listo para firma. No envíes nada todavía.</em></p>
+          <p>El agente lee la solicitud, llena el formulario desde el repositorio maestro y arma el paquete. <strong>Nunca envía nada sin tu confirmación explícita</strong>, y el envío siempre es simulado.</p>
+        </div>
+      </div>
+
+      <div class="pensando oculto" id="pensando" role="status">
+        <span class="puntos" aria-hidden="true"><i></i><i></i><i></i></span>
+        El agente está trabajando…
+      </div>
+
+      <form class="compositor" id="compositor">
+        <label class="oculto-visual" for="entrada">Mensaje</label>
+        <textarea id="entrada" rows="2" maxlength="4000" placeholder="Escribe un mensaje… (Enter envía, Shift+Enter salto de línea)"></textarea>
+        <button type="submit" id="enviar">Enviar</button>
+      </form>
+    </main>
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
