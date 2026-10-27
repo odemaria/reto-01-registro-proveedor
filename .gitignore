@@ -1,0 +1,10 @@
+node_modules/
+out/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Enunciado del proceso de selección: documento de Periferia, no se publica.
+PRD.md
