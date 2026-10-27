@@ -235,8 +235,15 @@ punto por punto. Encontró seis brechas, que se corrigieron y quedaron cubiertas
 
 **Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (100 pruebas) y `tsc`, construyó
 la imagen Docker, revisó el Excel, el PDF, el checklist y el borrador de correo generados, y probó el
-flujo de confirmación en el chat con el proveedor simulado. El adaptador de Gemini se probó con un cliente falso (formato de mensajes, firmas de pensamiento, reintentos y flujo completo); la prueba contra la API real de Gemini queda pendiente de tener la clave.
-*(Completar por el candidato: qué revisó personalmente y la prueba con el modelo real.)*
+flujo de confirmación en el chat con el proveedor simulado. El adaptador de Gemini se probó con un cliente falso (formato de mensajes, firmas de pensamiento, reintentos y flujo completo).
+Con el modelo real, en el link público (`gemini-2.5-flash`), se verificó: el ejemplo de la sección 11
+del PRD completo (4 herramientas en ~10 s, resumen correcto y pregunta de confirmación), que "envía"
+crea solo `ENVIO-SIMULADO.md`, que un "sí" para otro caso queda bloqueado por el backend sin crear
+archivos, la descarga de los archivos generados y que no aparecen la cuenta bancaria ni la clave en
+el correo, el checklist, los logs ni las respuestas de la API.
+
+**Revisión del candidato:** definí las restricciones (sin claves en el repositorio, solo datos ficticios, IA gratuita en vez de una de pago). Preparé un análisis propio de las trampas del PRD y pedí contrastar la solución punto por punto, lo que llevó a corregir seis brechas. Elegí Gemini y Render, desplegué el servicio y entregué los logs del despliegue que permitieron diagnosticar el error de configuración. Probé el flujo completo con el modelo real en el link público.
+
 
 ## 10. Riesgos de llevarlo a producción
 
