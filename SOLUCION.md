@@ -23,8 +23,9 @@ incompletos) y a la empresa (se retrasa la facturación).
                                         │       │                    │                 │
                                         │       ▼                    ▼                 │
                                         │ src/llm/adapter.ts   src/tools/registro.ts   │
-                                        │  ├ anthropic.ts       valida con zod y llama │
-                                        │  └ simulado.ts        src/tools/proveedor.ts │
+                                        │  ├ gemini.ts          valida con zod y llama │
+                                        │  ├ anthropic.ts       src/tools/proveedor.ts │
+                                        │  └ simulado.ts                               │
                                         └───────────────────────────┬──────────────────┘
                                                                     │ src/dominio/* (lógica pura)
                                          fixtures/ (solo lectura) ◀─┴─▶ out/ (escritura + log.jsonl)
@@ -80,20 +81,21 @@ en `out/log.jsonl` y `out/<caso>/log.jsonl` con `{ ts, sesion, herramienta, ok, 
 
 | | |
 |---|---|
-| Proveedor | Anthropic (Messages API, SDK oficial `@anthropic-ai/sdk`) |
-| Modelo por defecto | `claude-opus-5-5`, esfuerzo `medium` (configurable con `LLM_MODEL` / `LLM_EFFORT`) |
-| Por qué | Uso de herramientas fiable en cadenas de 4–5 pasos, buen español y buena obediencia a reglas del tipo "no afirmes valores que no salieron de una herramienta". Con esfuerzo `medium` razona lo suficiente para orquestar sin gastar de más. |
-| Respaldo | Se activa el *fallback* del servidor (`fallbacks: "default"`): si el modelo declina por política, la API reintenta con otro modelo en la misma llamada. |
-| Caché | El system prompt se marca con `cache_control` para abaratar los turnos siguientes. |
+| Proveedor del link de prueba | **Google Gemini** (API de Google AI Studio, SDK oficial `@google/genai`), capa gratuita |
+| Modelo por defecto | `gemini-3.8-flash` (configurable con `LLM_MODEL`; también funciona `gemini-2.5-flash`, también gratuito) |
+| Por qué | Está en la capa gratuita según la página oficial de precios de Google, soporta llamadas a funciones con esquemas JSON y razona por defecto, lo que basta para orquestar 4–5 herramientas. La clave gratuita evita gastar una clave de pago con un link público. |
+| Alternativa incluida | Adaptador de Anthropic (`claude-opus-5-5`) en `src/llm/anthropic.ts`. Se activa solo con `ANTHROPIC_API_KEY`; no se usó en el despliegue. |
+| Selección | `LLM_PROVIDER=auto` (por defecto): Gemini si hay `GEMINI_API_KEY`, Anthropic si hay la suya, si no el simulado. El ciclo del agente es el mismo para los tres: así se demuestra que cambiar de proveedor no lo toca. |
 
-**Costo estimado por caso** (a validar con el uso real que acumula `/api/sessions/:id` → `tokensUsados`):
-un caso completo son ~5 llamadas al modelo. Cada llamada envía prompt + herramientas (~4–5 mil
-tokens) más el historial con resultados de herramientas (crece hasta ~10–12 mil), y produce ~0,5–1
-mil tokens (incluido razonamiento). Total aproximado: **~40 mil tokens de entrada y ~4 mil de
-salida ≈ US$0,24 por caso** a US$4 / US$20 por millón (menos con caché). Con 12 casos al mes son
-unos US$3. Si se quiere bajar el costo, `LLM_MODEL=claude-sonnet-5-5` (US$2 / US$10) lo reduce a
-la mitad sin tocar código; no lo dejé por defecto porque el costo ya es marginal frente a las horas
-que ahorra.
+**Costo estimado por caso:** un caso completo son ~5 llamadas al modelo, con ~40 mil tokens de
+entrada y ~4 mil de salida en total (el historial crece con los resultados de las herramientas).
+- **Con Gemini en la capa gratuita: US$0.** El límite es de solicitudes por minuto y por día (Google
+  ajusta las cifras por proyecto); el adaptador reintenta ante un `429` y, si sigue el límite, el chat
+  lo explica. Para 8–12 casos al mes sobra.
+- Si en producción se pasara a un plan de pago (Gemini o Anthropic), el costo seguiría siendo de
+  centavos por caso: con Claude Opus 5.5 (US$4 / US$20 por millón) serían ≈ US$0,24 por caso.
+
+El uso real queda en `/api/sessions/:id` → `tokensUsados`.
 
 ## 5. Diseño del portal web (no implementado, sección 7.4)
 
@@ -135,7 +137,7 @@ El agente solo recibe la URL del portal (que viene en el correo).
 | 3 | **`generar_formulario` ignora los valores que mande el modelo** en `mapeo`: relee el maestro y solo avisa si la clave propuesta difiere. | Escribir lo que llegue en `mapeo`. | Así un valor alucinado nunca llega al formulario (CA2). |
 | 3b | **Valores sensibles enmascarados hacia el modelo** (cuenta bancaria y cédula, lista en `reglas.json`): `mapear_campos` y `mapeo.json` muestran `*******2345`; solo el formulario lleva el dato completo, leído del maestro. | Enviar los valores completos al modelo. | El modelo no los necesita para orquestar, no puede repetirlos ni reescribirlos, y no viajan al proveedor del modelo ni al historial del chat. |
 | 4 | **Fecha de referencia configurable** (`FECHA_REFERENCIA`, por defecto la del sistema; `2026-09-03` en demo y `.env.example`). | Modificar `vigencia_hasta` en los fixtures para que "pasen" las pruebas. | El PRD prohíbe modificar los fixtures. Con la fecha real (octubre de 2026) la Cámara de Comercio ya venció y ningún caso estaría listo, lo que ocultaría los escenarios que el reto quiere probar (ausente en EC, vencido en HN). La fecha configurable reproduce esos escenarios sin tocar datos y deja el comportamiento real para producción. |
-| 5 | **Ciclo propio** con interfaz `ProveedorLLM` y dos implementaciones (Anthropic y simulado). | El *tool runner* del SDK o un framework de agentes. | El PRD exige que cambiar de proveedor no toque el ciclo, y necesitaba la compuerta de confirmación entre llamadas. El proveedor simulado permite probar el front y el flujo completo sin clave. |
+| 5 | **Ciclo propio** con interfaz `ProveedorLLM` y tres implementaciones (Gemini, Anthropic y simulado). | El *tool runner* del SDK o un framework de agentes. | El PRD exige que cambiar de proveedor no toque el ciclo, y necesitaba la compuerta de confirmación entre llamadas. El proveedor simulado permite probar el front y el flujo completo sin clave. |
 | 6 | **PDF generado** con `pdf-lib` (Helvetica, fechas fijas). | Rellenar un AcroForm. | No hay PDF real del cliente en los fixtures y el PRD acepta un PDF generado con etiquetas y valores en orden. |
 | 7 | **Front en HTML + JS sin build**, servido por el mismo proceso. | React/Vite. | Un solo comando arranca todo, cero configuración, y el alcance (chat + tarjetas + confirmación) no justifica un framework. |
 
@@ -223,10 +225,15 @@ punto por punto. Encontró seis brechas, que se corrigieron y quedaron cubiertas
   confirmación y la independencia del proveedor (decisión 5).
 - Arrancar el servidor de prueba en el puerto 3000 de la configuración de vista previa: ese puerto
   ya lo usaba otra aplicación local, así que se usó otro puerto sin tocar el otro proyecto.
+- Usar Claude como modelo del agente desplegado: el asistente lo propuso como opción por defecto,
+  pero se descartó para no usar una clave de pago en un link público. Se le pidió agregar un
+  adaptador de Gemini con capa gratuita; el de Anthropic queda como alternativa.
+- Publicar `PRD.md` en el repositorio público: se excluyó por ser un documento interno del proceso
+  de selección.
 
-**Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (73 pruebas) y `tsc`, construyó
+**Verificación:** el asistente ejecutó `bun run demo.ts`, `bun test` (85 pruebas) y `tsc`, construyó
 la imagen Docker, revisó el Excel, el PDF, el checklist y el borrador de correo generados, y probó el
-flujo de confirmación en el chat con el proveedor simulado.
+flujo de confirmación en el chat con el proveedor simulado. El adaptador de Gemini se probó con un cliente falso (formato de mensajes, firmas de pensamiento, reintentos y flujo completo); la prueba contra la API real de Gemini queda pendiente de tener la clave.
 *(Completar por el candidato: qué revisó personalmente y la prueba con el modelo real.)*
 
 ## 10. Riesgos de llevarlo a producción
@@ -236,6 +243,7 @@ flujo de confirmación en el chat con el proveedor simulado.
 | El modelo "completa" un valor faltante. | Los valores solo salen del maestro vía herramientas; `generar_formulario` ignora valores del modelo; el prompt lo prohíbe; el checklist lista faltantes. |
 | **Inyección de instrucciones** en el correo del cliente (el cuerpo llega al modelo). | Las acciones externas exigen confirmación en código; las herramientas no ejecutan comandos ni escriben fuera de `out/`; nombres de caso y archivos validados. En producción: marcar el contenido del correo como dato no confiable y revisar adjuntos. |
 | Datos sensibles (cuenta bancaria, cédula) enviados al proveedor del modelo. | Ya implementado: se enmascaran en lo que ve el modelo y el chat. En producción, además, un acuerdo de retención de datos con el proveedor y ampliar `claves_sensibles` según la política de datos. |
+| La **capa gratuita** de Gemini puede usar las solicitudes para mejorar los productos de Google y tiene límites bajos por minuto. | Aceptable para el reto porque todos los datos son ficticios. En producción: plan de pago (sin uso de datos para entrenamiento y con más cuota), o el adaptador de Anthropic, sin cambiar el ciclo. |
 | Maestro o soportes desactualizados. | Nombrar un dueño del dato; alertas de "por vencer"; la fecha de referencia real en producción. |
 | Plantillas reales más variadas (celdas combinadas, PDFs escaneados). | Ampliar el glosario con la telemetría de faltantes; escribir sobre el archivo original; OCR para PDFs escaneados. |
 | Costo descontrolado por abuso del link. | Tope de iteraciones y tokens por sesión, límite por IP y clave de acceso opcional (`APP_ACCESS_KEY`). |

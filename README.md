@@ -16,8 +16,10 @@ antes de cualquier envío** (que además es simulado).
 ## Requisitos
 
 - [Bun](https://bun.sh) 1.1 o superior (probado con 1.4.2).
-- Opcional: una clave de Anthropic. Sin clave el servidor arranca con el **proveedor simulado**
-  (sin modelo de lenguaje) y todo el flujo se puede probar igual.
+- Una clave **gratuita** de Gemini, creada en [Google AI Studio](https://aistudio.google.com/apikey).
+  El modelo por defecto es `gemini-3.8-flash`, que está en la capa gratuita.
+- Sin clave, el servidor arranca con el **proveedor simulado** (sin modelo de lenguaje) y todo el
+  flujo se puede probar igual. También hay un adaptador para Anthropic (`ANTHROPIC_API_KEY`), opcional.
 
 ## Arranque local (un comando)
 
@@ -29,7 +31,7 @@ bun install
 cp .env.example .env
 ```
 
-Edita `.env` y pon tu `ANTHROPIC_API_KEY` (opcional). Luego:
+Edita `.env` y pon tu `GEMINI_API_KEY`. Luego:
 
 ```bash
 bun run dev
@@ -63,9 +65,10 @@ bun test
 bun run typecheck
 ```
 
-73 pruebas: mapeo y reglas de negocio, contrato de herramientas, generación de archivos, la matriz de
+85 pruebas: mapeo y reglas de negocio, contrato de herramientas, generación de archivos, la matriz de
 "trampas" del PRD (confirmación ligada a caso, celdas exactas, soporte vs. faltante, identificador
-extranjero, datos bancarios, timeout, determinismo), tope de iteraciones y sincronía de `modulo/`.
+extranjero, datos bancarios, timeout, determinismo), tope de iteraciones, sincronía de `modulo/` y el
+adaptador de Gemini con un cliente falso (no necesitan red ni clave).
 
 ## Variables de entorno
 
@@ -73,10 +76,11 @@ Todas están documentadas en [.env.example](.env.example). Las principales:
 
 | Variable | Para qué | Por defecto |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Clave del modelo. Solo la lee el SDK en el backend. | (vacía → simulado) |
-| `LLM_PROVIDER` | `anthropic` o `simulado` | `anthropic` |
-| `LLM_MODEL` | Modelo de Claude | `claude-opus-5-5` |
-| `LLM_EFFORT` | Esfuerzo de razonamiento | `medium` |
+| `GEMINI_API_KEY` | Clave gratuita de Google AI Studio. Solo la lee el backend. | (vacía) |
+| `LLM_PROVIDER` | `auto`, `gemini`, `anthropic` o `simulado`. `auto` usa el proveedor cuya clave exista. | `auto` |
+| `LLM_MODEL` | Modelo del proveedor | `gemini-3.8-flash` (o `claude-opus-5-5` con Anthropic) |
+| `ANTHROPIC_API_KEY` | Opcional: proveedor alternativo | (vacía) |
+| `LLM_EFFORT` | Esfuerzo de razonamiento (solo Anthropic) | `medium` |
 | `FECHA_REFERENCIA` | Fecha contra la que se evalúan vigencias (AAAA-MM-DD) | fecha del sistema |
 | `MAX_ITERACIONES` | Tope de pasos herramienta → modelo por turno | `25` |
 | `MAX_TOKENS_SESION` | Tope de tokens por sesión | `400000` |
@@ -106,7 +110,7 @@ src/tools/proveedor.ts              las 5 herramientas (contrato 6.2) → provee
 src/tools/registro.ts               publica y valida las herramientas con zod
 src/dominio/                        lógica pura: mapeo, soportes, formularios, paquete, bitácora
 src/agent/                          ciclo del agente, confirmación humana, sesiones
-src/llm/adapter.ts                  interfaz del proveedor · anthropic.ts · simulado.ts
+src/llm/adapter.ts                  interfaz del proveedor · gemini.ts · anthropic.ts · simulado.ts · fabrica.ts (elige)
 src/server.ts                       API HTTP + archivos estáticos
 web/                                front del chat (HTML + JS, sin build)
 demo.ts                             herramientas sin modelo
@@ -116,10 +120,15 @@ tests/                              pruebas con bun test
 
 ## Despliegue (Render)
 
-1. Sube el repositorio a GitHub.
-2. En Render: **New → Blueprint** y elige el repositorio (usa `render.yaml` y el `Dockerfile`).
-3. En el panel, define `ANTHROPIC_API_KEY` (y `APP_ACCESS_KEY` si quieres proteger el link).
-4. Copia la URL pública en la sección "Link de prueba" de este README.
+1. Crea una clave gratuita en [Google AI Studio](https://aistudio.google.com/apikey).
+2. En Render: **New → Blueprint** y elige este repositorio (usa `render.yaml` y el `Dockerfile`).
+3. En el panel de Render, define `GEMINI_API_KEY` (y `APP_ACCESS_KEY` si quieres proteger el link).
+   La clave queda solo en Render, nunca en el repositorio.
+4. Verifica `https://<servicio>.onrender.com/api/health`: debe decir `"provider":"gemini"`.
+5. Copia la URL pública en la sección "Link de prueba" de este README.
+
+El plan gratuito de Render "duerme" el servicio tras 15 minutos sin uso; el primer acceso tarda
+cerca de un minuto en despertar. Conviene abrir el link unos minutos antes de la defensa.
 
 Cualquier plataforma con Docker sirve igual (Railway, Fly.io, Azure Container Apps): solo hay que
 exponer el puerto `PORT` y definir las variables de entorno.
@@ -128,6 +137,8 @@ exponer el puerto `PORT` y definir las variables de entorno.
 
 - La clave del modelo solo existe como variable de entorno del backend. No está en el repo, no se
   envía al front, no aparece en logs ni en respuestas de la API (`.env` está en `.gitignore`).
+- La capa gratuita de Gemini puede usar las solicitudes para mejorar los productos de Google. Por eso
+  el proyecto solo usa datos ficticios, y la cuenta bancaria y la cédula se envían al modelo enmascaradas.
 - Todos los datos de los fixtures son ficticios. El agente nunca pide ni guarda contraseñas de portales.
 - Las herramientas no ejecutan comandos de shell y solo escriben dentro de `out/`. Los nombres de
   caso y de archivo se validan para evitar rutas arbitrarias.
