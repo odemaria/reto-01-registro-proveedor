@@ -1,0 +1,44 @@
+import { z } from "zod"
+import { esFechaValida } from "./dominio/fechas"
+
+/**
+ * Configuración desde variables de entorno (ver .env.example).
+ * La clave del proveedor (ANTHROPIC_API_KEY) NO se lee aquí: la lee el SDK directamente,
+ * así nunca termina en objetos de configuración, logs ni respuestas de la API.
+ */
+const esquema = z.object({
+  PORT: z.coerce.number().int().positive().default(3000),
+  LLM_PROVIDER: z.enum(["anthropic", "simulado"]).default("anthropic"),
+  LLM_MODEL: z.string().min(1).default("claude-opus-5-5"),
+  LLM_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  LLM_MAX_TOKENS_RESPUESTA: z.coerce.number().int().min(1024).max(64000).default(16000),
+  LLM_TIMEOUT_MS: z.coerce.number().int().min(5000).default(90000),
+  MAX_ITERACIONES: z.coerce.number().int().min(1).max(100).default(25),
+  MAX_TOKENS_SESION: z.coerce.number().int().min(10000).default(400000),
+  MAX_SESIONES: z.coerce.number().int().min(1).default(200),
+  MAX_MENSAJES_POR_MINUTO: z.coerce.number().int().min(1).default(20),
+  FECHA_REFERENCIA: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined))
+    .refine((v) => v === undefined || esFechaValida(v), "FECHA_REFERENCIA debe tener formato AAAA-MM-DD"),
+  APP_ACCESS_KEY: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined)),
+})
+
+export type Config = z.infer<typeof esquema>
+
+export function cargarConfig(entorno: Record<string, string | undefined> = process.env): Config {
+  const r = esquema.safeParse(entorno)
+  if (!r.success) {
+    const detalle = r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
+    throw new Error(`Configuración inválida: ${detalle}`)
+  }
+  return r.data
+}
+
+export function hayClaveProveedor(entorno: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(entorno.ANTHROPIC_API_KEY?.trim() || entorno.ANTHROPIC_AUTH_TOKEN?.trim())
+}
